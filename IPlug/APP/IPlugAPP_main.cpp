@@ -9,11 +9,16 @@
 */
 
 #include <memory>
+#include <vector>
 #include "wdltypes.h"
 #include "wdlstring.h"
 
 #include "IPlugPlatform.h"
 #include "IPlugAPP_host.h"
+#include "IGraphics.h"
+#if defined IGRAPHICS_GL
+  #include "glad/glad.h"
+#endif
 
 #include "config.h"
 #include "resource.h"
@@ -128,6 +133,39 @@ bool SaveWindowScreenshot(HWND hwnd, const char* path)
   DeleteObject(hBitmap);
 
   return result != 0;
+}
+
+// PrintWindow cannot see a hardware OpenGL child surface. Read Skia/GL's presented back
+// buffer while its own context is current, then flip OpenGL's bottom-up rows for PNG output.
+bool SaveGraphicsScreenshot(igraphics::IGraphics* pGraphics, const char* path)
+{
+#if defined IGRAPHICS_GL
+  if (!pGraphics || !path) return false;
+  const int width = static_cast<int>(std::ceil(pGraphics->WindowWidth() * pGraphics->GetScreenScale()));
+  const int height = static_cast<int>(std::ceil(pGraphics->WindowHeight() * pGraphics->GetScreenScale()));
+  if (width <= 0 || height <= 0) return false;
+
+  std::vector<uint8_t> pixels(static_cast<size_t>(width) * static_cast<size_t>(height) * 4);
+  {
+    igraphics::IGraphics::ScopedGLContext context(pGraphics);
+    igraphics::IRECTList rects;
+    rects.Add(pGraphics->GetBounds());
+    pGraphics->Draw(rects);
+    glFinish();
+    glReadBuffer(GL_BACK);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    if (glGetError() != GL_NO_ERROR) return false;
+  }
+  std::vector<uint8_t> topDown(pixels.size());
+  const size_t rowBytes = static_cast<size_t>(width) * 4;
+  for (int y = 0; y < height; ++y)
+    memcpy(topDown.data() + static_cast<size_t>(y) * rowBytes,
+           pixels.data() + static_cast<size_t>(height - 1 - y) * rowBytes, rowBytes);
+  return stbi_write_png(path, width, height, 4, topDown.data(), width * 4) != 0;
+#else
+  (void) pGraphics; (void) path;
+  return false;
+#endif
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nShowCmd)
