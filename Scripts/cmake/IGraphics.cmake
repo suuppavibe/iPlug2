@@ -319,7 +319,8 @@ if(NOT TARGET iPlug2::IGraphics::Skia)
   )
 
   if(WIN32)
-    set(SKIA_LIB_PATH ${SKIA_PATH}/out/Release-x64)
+    set(SKIA_LIB_PATH ${DEPS_DIR}/Build/win/x64/$<CONFIG>)
+    target_link_directories(iPlug2::IGraphics::Skia INTERFACE ${SKIA_LIB_PATH})
     target_link_libraries(iPlug2::IGraphics::Skia INTERFACE
       ${SKIA_LIB_PATH}/skia.lib
       ${SKIA_LIB_PATH}/svg.lib
@@ -363,6 +364,13 @@ if(NOT TARGET iPlug2::IGraphics::Skia::GL3)
     IGRAPHICS_SKIA
     IGRAPHICS_GL3
   )
+
+  if(WIN32)
+    target_include_directories(iPlug2::IGraphics::Skia::GL3 INTERFACE
+      ${IGRAPHICS_DEPS_DIR}/glad_GL3/include
+      ${IGRAPHICS_DEPS_DIR}/glad_GL3/src
+    )
+  endif()
 
   if(APPLE)
     target_link_libraries(iPlug2::IGraphics::Skia::GL3 INTERFACE

@@ -20,6 +20,7 @@
 extern float GetScaleForHWND(HWND hWnd);
 #define GET_MENU() GetMenu(gHWND)
 extern bool SaveWindowScreenshot(HWND hwnd, const char* path);
+extern bool SaveGraphicsScreenshot(iplug::igraphics::IGraphics* pGraphics, const char* path);
 #elif defined OS_MAC
 #define GET_MENU() SWELL_GetCurrentMenu()
 extern "C" bool SaveWindowScreenshot(void* hwnd, const char* path);
@@ -579,7 +580,10 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
       {
         KillTimer(hwndDlg, IDT_SCREENSHOT_TIMER);
 
-        SaveWindowScreenshot(gHWND, pAppHost->GetScreenshotPath());
+        auto* pEditor = dynamic_cast<IGEditorDelegate*>(pAppHost->GetPlug());
+        const bool saved = pEditor && SaveGraphicsScreenshot(pEditor->GetUI(), pAppHost->GetScreenshotPath());
+        if (!saved)
+          SaveWindowScreenshot(gHWND, pAppHost->GetScreenshotPath());
 
         // Exit the application
         DestroyWindow(hwndDlg);
