@@ -11,6 +11,8 @@
 #pragma once
 
 #include "IPlugLogger.h"
+#include <string>
+#include <vector>
 
 BEGIN_IPLUG_NAMESPACE
 BEGIN_IGRAPHICS_NAMESPACE
@@ -180,7 +182,13 @@ class DataObject : public IDataObject
 public:
   DataObject(const FORMATETC* f, const char *filePath) : mFormatPtr (f) 
   {
-    mFilePath = filePath;
+    mFilePaths.push_back(filePath);
+  }
+
+  // Several files in one drop (CF_HDROP carries a double-null-terminated list).
+  DataObject(const FORMATETC* f, const char** filePaths, int n) : mFormatPtr (f)
+  {
+    for (int i = 0; i < n; ++i) mFilePaths.push_back(filePaths[i]);
   }
   
   virtual ~DataObject() 
@@ -229,9 +237,16 @@ public:
       return DV_E_FORMATETC;
     }
 
-    UTF8AsUTF16 pathWide(mFilePath.c_str());
+    std::vector<wchar_t> list;
+    for (const std::string& p : mFilePaths)
+    {
+      UTF8AsUTF16 pathWide(p.c_str());
+      list.insert(list.end(), pathWide.Get(), pathWide.Get() + pathWide.GetLength());
+      list.push_back(L'\0');
+    }
+    list.push_back(L'\0');
     // GHND ensures that the memory is zeroed
-    HDROP hGlobal = (HDROP)GlobalAlloc(GHND, sizeof(DROPFILES) + (sizeof(wchar_t) * (pathWide.GetLength() + 2)));
+    HDROP hGlobal = (HDROP)GlobalAlloc(GHND, sizeof(DROPFILES) + (sizeof(wchar_t) * (list.size() + 1)));
 
     if (!hGlobal) 
     {
@@ -248,7 +263,7 @@ public:
     // Populate the dropfile structure and copy the file path
     pDropFiles->pFiles = sizeof(DROPFILES);
     pDropFiles->fWide = true;
-    std::copy_n(pathWide.Get(), pathWide.GetLength(), reinterpret_cast<wchar_t*>(&pDropFiles[1]));
+    std::copy_n(list.data(), list.size(), reinterpret_cast<wchar_t*>(&pDropFiles[1]));
 
     // not sure if this is necessary to set the medium but why not
     pMedium->tymed = TYMED_HGLOBAL;
@@ -304,7 +319,7 @@ public:
   HRESULT STDMETHODCALLTYPE EnumDAdvise(IEnumSTATDATA**) { return E_NOTIMPL; }
 private:
   int mRefCount = 1;
-  std::string mFilePath;
+  std::vector<std::string> mFilePaths;
   const FORMATETC* const mFormatPtr;
 };
 } // end of DragAndDropHelpers namespace

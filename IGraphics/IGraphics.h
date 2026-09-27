@@ -871,6 +871,16 @@ public:
    * @return /c true on success */
   virtual bool InitiateExternalFileDragDrop(const char* path, const IRECT& iconBounds) { return false; };
 
+  /** Initiate a drag-n-drop of several existing files at once (e.g. stems), dropped outside the window
+   * @param paths Array of n CStrings, each a path to a file on disk
+   * @param n Number of paths
+   * @param iconBounds The area where the icons should appear
+   * @return /c true on success */
+  virtual bool InitiateExternalFilesDragDrop(const char** paths, int n, const IRECT& iconBounds)
+  {
+    return n == 1 ? InitiateExternalFileDragDrop(paths[0], iconBounds) : false;
+  }
+
   /** Call this if you modify control tool tips at runtime to refresh the platform tooltip state */
   virtual void UpdateTooltips() = 0;
 

@@ -1855,14 +1855,20 @@ bool IGraphicsWin::SetFilePathInClipboard(const char* path)
   return result;
 }
 
-bool IGraphicsWin::InitiateExternalFileDragDrop(const char* path, const IRECT& /*iconBounds*/)
+bool IGraphicsWin::InitiateExternalFileDragDrop(const char* path, const IRECT& iconBounds)
+{
+  return InitiateExternalFilesDragDrop(&path, 1, iconBounds);
+}
+
+bool IGraphicsWin::InitiateExternalFilesDragDrop(const char** paths, int n, const IRECT& /*iconBounds*/)
 {
   using namespace DragAndDropHelpers;
+  if (n <= 0) return false;
   OleInitialize(nullptr);
   
   FORMATETC format = { CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
   
-  DataObject* dataObj = new DataObject(&format, path);
+  DataObject* dataObj = new DataObject(&format, paths, n);
   DropSource* dropSource = new DropSource();
   
   DWORD dropEffect;

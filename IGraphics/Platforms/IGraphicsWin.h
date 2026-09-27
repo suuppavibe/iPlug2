@@ -75,6 +75,7 @@ public:
   bool SetFilePathInClipboard(const char* path) override;
 
   bool InitiateExternalFileDragDrop(const char* path, const IRECT& iconBounds) override;
+  bool InitiateExternalFilesDragDrop(const char** paths, int n, const IRECT& iconBounds) override;
 
   bool PlatformSupportsMultiTouch() const override;
 

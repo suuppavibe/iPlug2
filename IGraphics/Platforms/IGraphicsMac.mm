@@ -697,18 +697,29 @@ bool IGraphicsMac::SetFilePathInClipboard(const char* path)
 
 bool IGraphicsMac::InitiateExternalFileDragDrop(const char* path, const IRECT& iconBounds)
 {
-  NSPasteboardItem* pasteboardItem = [[NSPasteboardItem alloc] init];
-  NSURL* fileURL = [NSURL fileURLWithPath: [NSString stringWithUTF8String:path]];
-  [pasteboardItem setString:fileURL.absoluteString forType:NSPasteboardTypeFileURL];
-  
-  NSDraggingItem* draggingItem = [[NSDraggingItem alloc] initWithPasteboardWriter:pasteboardItem];
-  NSRect draggingFrame = ToNSRect(this, iconBounds);
-  NSImage* iconImage = [[NSWorkspace sharedWorkspace] iconForFile:fileURL.path];
-  [iconImage setSize:NSMakeSize(64, 64)];
-  [draggingItem setDraggingFrame:draggingFrame contents: iconImage];
+  return InitiateExternalFilesDragDrop(&path, 1, iconBounds);
+}
+
+bool IGraphicsMac::InitiateExternalFilesDragDrop(const char** paths, int n, const IRECT& iconBounds)
+{
+  if (n <= 0) return false;
+  NSMutableArray* items = [NSMutableArray arrayWithCapacity:n];
+  for (int i = 0; i < n; ++i)
+  {
+    NSPasteboardItem* pasteboardItem = [[NSPasteboardItem alloc] init];
+    NSURL* fileURL = [NSURL fileURLWithPath: [NSString stringWithUTF8String:paths[i]]];
+    [pasteboardItem setString:fileURL.absoluteString forType:NSPasteboardTypeFileURL];
+    NSDraggingItem* draggingItem = [[NSDraggingItem alloc] initWithPasteboardWriter:pasteboardItem];
+    NSRect draggingFrame = ToNSRect(this, iconBounds);
+    draggingFrame.origin.x += 6 * i; draggingFrame.origin.y += 6 * i;   // fan the icons slightly
+    NSImage* iconImage = [[NSWorkspace sharedWorkspace] iconForFile:fileURL.path];
+    [iconImage setSize:NSMakeSize(64, 64)];
+    [draggingItem setDraggingFrame:draggingFrame contents: iconImage];
+    [items addObject:draggingItem];
+  }
   
   IGRAPHICS_VIEW* view = (IGRAPHICS_VIEW*) mView;
-  NSDraggingSession* draggingSession = [view beginDraggingSessionWithItems:@[draggingItem] event:[NSApp currentEvent] source: view];
+  NSDraggingSession* draggingSession = [view beginDraggingSessionWithItems:items event:[NSApp currentEvent] source: view];
   draggingSession.animatesToStartingPositionsOnCancelOrFail = YES;
   draggingSession.draggingFormation = NSDraggingFormationNone;
   
