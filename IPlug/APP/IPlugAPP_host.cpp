@@ -236,7 +236,10 @@ std::optional<uint32_t> IPlugAPPHost::GetAudioDeviceID(const char* deviceNameToT
 int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) const
 {
   int start = 1;
-  
+
+  // Screenshot / no-I/O mode never creates the RtMidi objects; treat every port as OFF.
+  if (!mMidiIn || !mMidiOut) return 0;
+
   auto nameStrView = std::string_view(nameToTest);
   
   if (direction == ERoute::kInput)
