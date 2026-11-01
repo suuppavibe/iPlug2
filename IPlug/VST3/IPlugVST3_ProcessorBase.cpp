@@ -387,13 +387,20 @@ void IPlugVST3ProcessorBase::ProcessAudio(ProcessData& data, ProcessSetup& setup
       }
     }
     
-    for (int outBus = 0, chanOffset = 0; outBus < data.numOutputs; outBus++)
+    // Each bus keeps the channel slots of its declared arrangement. A host may pass an inactive
+    // bus with 0 channels; advancing by the passed count would shift every later bus down onto
+    // the slots of an earlier one.
+    for (int outBus = 0, chanOffset = 0; outBus < data.numOutputs && outBus < (int) outs.size(); outBus++)
     {
-      int busChannels = data.outputs[outBus].numChannels;
-      SetChannelConnections(ERoute::kOutput, chanOffset, busChannels, outs[outBus].get()->isActive());
+      auto* pBus = static_cast<AudioBus*>(outs[outBus].get());
+      const int declared = SpeakerArr::getChannelCount(pBus->getArrangement());
+      const int slots = declared > 0 ? declared : data.outputs[outBus].numChannels;
+      const int busChannels = std::min(data.outputs[outBus].numChannels, slots);
+      SetChannelConnections(ERoute::kOutput, chanOffset, busChannels, pBus->isActive());
       SetChannelConnections(ERoute::kOutput, chanOffset + busChannels, MaxNChannels(ERoute::kOutput) - (chanOffset + busChannels), false);
-      AttachBuffers(ERoute::kOutput, chanOffset, busChannels, data.outputs[outBus], data.numSamples, sampleSize);
-      chanOffset += busChannels;
+      if (busChannels > 0)
+        AttachBuffers(ERoute::kOutput, chanOffset, busChannels, data.outputs[outBus], data.numSamples, sampleSize);
+      chanOffset += slots;
     }
     
     if (GetBypassed())
